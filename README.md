@@ -117,3 +117,82 @@ docker-compose up -d
 ```
 
 This will start the API server and PostgreSQL database with pgvector extension. 
+
+## Render Deployment
+
+This project is configured for deployment on Render using both development and production environments. The `render.yaml` blueprint file defines both environments with appropriate resources.
+
+### Prerequisites for Render Deployment
+
+1. A Render account
+2. OpenAI API key
+3. ClickUp API key (if using ClickUp integration)
+4. Mem0 API key (if using Mem0 memory service)
+
+### Automatic Deployment with Blueprint
+
+1. Fork or push this repository to GitHub
+2. In Render dashboard, click "New Blueprint"
+3. Select your repository and click "Apply"
+4. Render will automatically create the specified services and databases
+5. After databases are created, run the pgvector initialization script:
+   ```
+   python scripts/init_pgvector.py
+   ```
+
+### Manual Deployment Steps
+
+If you prefer manual setup:
+
+1. **Create PostgreSQL Database**
+   - In Render dashboard, go to "New" > "PostgreSQL"
+   - Configure your database (name, region, etc.)
+   - Choose PostgreSQL 15 or higher
+   - After creation, note the connection details
+
+2. **Initialize pgvector Extension**
+   - Connect to the database using the provided PSQL command
+   - Run: `CREATE EXTENSION IF NOT EXISTS vector;`
+   - Alternatively, use the script: `python scripts/init_pgvector.py DATABASE_URL`
+
+3. **Deploy Web Service**
+   - In Render dashboard, go to "New" > "Web Service"
+   - Connect your repository
+   - Select "Docker" for environment
+   - Set the following environment variables:
+     - `DATABASE_URL`: Your PostgreSQL connection string
+     - `OPENAI_API_KEY`: Your OpenAI API key
+     - `CLICKUP_API_KEY`: Your ClickUp API key
+     - `MEM0_API_KEY`: Your Mem0 API key
+     - `MEM0_CATEGORIES`: projects,clients,tasks,documents,conversations,compliance,resources,financial
+
+### Development vs. Production
+
+The blueprint configures two environments:
+
+- **Development (wcc-dev)**
+  - Free tier resources
+  - Debug logging
+  - Single instance
+  - Tied to 'develop' branch
+
+- **Production (wcc-prod)**
+  - Standard tier resources
+  - Multiple instances for redundancy
+  - Normal logging level
+  - Tied to 'main' branch
+
+### Checking Deployment Status
+
+1. Monitor build logs in the Render dashboard
+2. Once deployed, visit the web service URL
+3. Check the `/health` endpoint for service status
+
+### Troubleshooting
+
+If your service fails to start:
+
+1. Check logs in the Render dashboard
+2. Ensure pgvector extension is enabled
+3. Verify all required environment variables are set
+4. Check if the database is accessible from the web service 

@@ -1,5 +1,7 @@
 import os
 import logging
+import time
+import urllib.parse
 from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, String, Integer, JSON, Text, Float, select, delete
@@ -34,27 +36,67 @@ class PostgresVectorStore:
         """
         self.collection_name = collection_name
         
-        # Get PostgreSQL connection information
-        self.host = os.getenv("POSTGRES_HOST", "localhost")
-        self.port = os.getenv("POSTGRES_PORT", "5432")
-        self.user = os.getenv("POSTGRES_USER", "postgres")
-        self.password = os.getenv("POSTGRES_PASSWORD", "postgres")
-        self.database = os.getenv("POSTGRES_DB", "construction_management")
-        
-        # Build connection string
-        self.connection_string = f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+        # Check for DATABASE_URL first (Render provides this)
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            # Use the DATABASE_URL directly
+            logger.info("Using DATABASE_URL for connection")
+            # Ensure sslmode is set properly for Render
+            if "sslmode" not in database_url:
+                if "?" in database_url:
+                    database_url += "&sslmode=require"
+                else:
+                    database_url += "?sslmode=require"
+            self.connection_string = database_url
+        else:
+            # Get PostgreSQL connection information
+            self.host = os.getenv("POSTGRES_HOST", "localhost")
+            self.port = os.getenv("POSTGRES_PORT", "5432")
+            self.user = os.getenv("POSTGRES_USER", "postgres")
+            self.password = os.getenv("POSTGRES_PASSWORD", "postgres")
+            self.database = os.getenv("POSTGRES_DB", "construction_management")
+            
+            # URL encode password to handle special characters
+            encoded_password = urllib.parse.quote_plus(self.password)
+            
+            # Build connection string with SSL mode for Render
+            self.connection_string = f"postgresql+psycopg2://{self.user}:{encoded_password}@{self.host}:{self.port}/{self.database}?sslmode=require"
         
         # Initialize embeddings
         self.embeddings = OpenAIEmbeddings()
         
-        # Initialize SQLAlchemy engine
-        self.engine = create_engine(self.connection_string)
+        # Initialize SQLAlchemy engine with connection pooling settings
+        self.engine = create_engine(
+            self.connection_string,
+            pool_size=5,
+            max_overflow=10,
+            pool_timeout=30,
+            pool_recycle=1800,
+            pool_pre_ping=True
+        )
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         
-        # Initialize PGVector
-        self._initialize_pgvector()
+        # Initialize PGVector with retries
+        self._initialize_pgvector_with_retries()
         
         logger.info(f"PostgreSQL vector store initialized with collection: {collection_name}")
+    
+    def _initialize_pgvector_with_retries(self, max_retries=5, retry_delay=5):
+        """
+        Initialize pgvector extension with retry logic for better resilience.
+        """
+        for attempt in range(max_retries):
+            try:
+                self._initialize_pgvector()
+                return
+            except Exception as e:
+                logger.error(f"Attempt {attempt+1}/{max_retries} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error("All attempts to initialize pgvector failed")
+                    raise
     
     def _initialize_pgvector(self):
         """

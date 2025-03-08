@@ -1,0 +1,63 @@
+services:
+  # Development Web Service
+  - type: web
+    name: wcc-dev
+    runtime: docker
+    plan: starter # Free tier for development
+    branch: develop # Assuming you use a develop branch for dev
+    dockerfilePath: ./Dockerfile
+    numInstances: 1
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false # This means you'll need to set it manually
+      - key: CLICKUP_API_KEY
+        sync: false
+      - key: MEM0_API_KEY
+        sync: false
+      - key: MEM0_CATEGORIES
+        value: projects,clients,tasks,documents,conversations,compliance,resources,financial
+      - key: LOG_LEVEL
+        value: DEBUG
+      - key: DATABASE_URL
+        fromDatabase:
+          name: wcc-db-dev
+          property: connectionString
+
+  # Production Web Service
+  - type: web
+    name: wcc-prod
+    runtime: docker
+    plan: standard # Paid tier for production
+    branch: main # Main branch for production
+    dockerfilePath: ./Dockerfile
+    numInstances: 2 # Multiple instances for redundancy
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CLICKUP_API_KEY
+        sync: false
+      - key: MEM0_API_KEY
+        sync: false
+      - key: MEM0_CATEGORIES
+        value: projects,clients,tasks,documents,conversations,compliance,resources,financial
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DATABASE_URL
+        fromDatabase:
+          name: wcc-db-prod
+          property: connectionString
+
+databases:
+  # Development Database
+  - name: wcc-db-dev
+    plan: free # Free tier for development
+    postgresMajorVersion: "15" # Needs to be a string
+    ipAllowList: [] # Only allow internal connections
+
+  # Production Database
+  - name: wcc-db-prod
+    plan: standard # Paid tier for production
+    postgresMajorVersion: "15" # Needs to be a string
+    ipAllowList: [] # Only allow internal connections 

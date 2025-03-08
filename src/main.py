@@ -24,7 +24,26 @@ app = FastAPI(
 )
 
 # Initialize the orchestrator agent
-orchestrator = OrchestratorAgent()
+orchestrator = None
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Initialize components on application startup.
+    This helps with proper initialization when running on Render.
+    """
+    global orchestrator
+    logger.info("Initializing orchestrator agent")
+    orchestrator = OrchestratorAgent()
+    logger.info("Orchestrator agent initialized successfully")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Clean up resources on application shutdown.
+    """
+    logger.info("Shutting down application")
+    # Add any cleanup code here if needed
 
 class Query(BaseModel):
     user_input: str
@@ -35,6 +54,10 @@ async def process_query(query: Query):
     """
     Process a user query and return a response from the agent system.
     """
+    global orchestrator
+    if orchestrator is None:
+        orchestrator = OrchestratorAgent()
+        
     try:
         logger.info(f"Received query: {query.user_input}")
         response = orchestrator.run(query.user_input)
@@ -66,5 +89,8 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+    
+    # Get port from environment variable (Render sets this)
+    port = int(os.getenv("PORT", 8000))
+    
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False) 
