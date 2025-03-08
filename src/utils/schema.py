@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, validator, root_validator
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import re
+from decimal import Decimal
 
 class TaskCreate(BaseModel):
     """
@@ -154,4 +155,96 @@ class ClientCreate(BaseModel):
             digits = re.sub(r'\D', '', v)
             if len(digits) < 10:
                 raise ValueError('Phone number must have at least 10 digits')
-        return v 
+        return v
+
+# Document processing schemas
+class DocumentMetadata(BaseModel):
+    """Metadata for a processed document"""
+    document_id: str
+    file_name: str
+    file_path: str
+    mime_type: str
+    creation_time: float
+    modification_time: float
+    metadata: Dict[str, Any] = {}
+    
+class ProcessedDocument(BaseModel):
+    """A processed document with content and metadata"""
+    metadata: DocumentMetadata
+    content: str
+    
+class DocumentSearchResult(BaseModel):
+    """Result from document search"""
+    document_id: str
+    file_name: str
+    mime_type: str
+    score: float
+    metadata: Dict[str, Any] = {}
+    snippet: str
+
+class DocumentRequest(BaseModel):
+    """Request to process a document"""
+    file_path: str
+    metadata: Optional[Dict[str, Any]] = None
+
+class DocumentSearchRequest(BaseModel):
+    """Request to search for documents"""
+    query: str
+    limit: int = 5
+    metadata_filter: Optional[Dict[str, Any]] = None
+
+# Financial schemas
+class FinancialTransaction(BaseModel):
+    """Financial transaction model for expenses and income"""
+    transaction_id: str
+    project_id: str
+    amount: Decimal
+    transaction_type: str  # 'expense' or 'income'
+    category: str
+    description: str
+    timestamp: str
+    reference: Optional[str] = None
+    
+    @validator('transaction_type')
+    def validate_transaction_type(cls, v):
+        if v not in ['expense', 'income']:
+            raise ValueError("Transaction type must be 'expense' or 'income'")
+        return v
+        
+    @validator('amount')
+    def validate_amount(cls, v):
+        if v <= 0:
+            raise ValueError("Amount must be greater than zero")
+        return v
+
+class BudgetCategory(BaseModel):
+    """Budget category with allocation"""
+    name: str
+    allocation: Decimal
+    description: Optional[str] = None
+
+class Budget(BaseModel):
+    """Project budget model"""
+    budget_id: str
+    project_id: str
+    total_amount: Decimal
+    categories: List[BudgetCategory] = []
+    created_at: str
+    updated_at: Optional[str] = None
+    notes: Optional[str] = None
+    
+    @validator('total_amount')
+    def validate_total_amount(cls, v):
+        if v <= 0:
+            raise ValueError("Total amount must be greater than zero")
+        return v
+
+class ProjectFinancials(BaseModel):
+    """Comprehensive financial information for a project"""
+    project_id: str
+    budget: Optional[Budget] = None
+    transactions: List[FinancialTransaction] = []
+    total_expenses: Decimal = Decimal('0')
+    total_income: Decimal = Decimal('0')
+    balance: Decimal = Decimal('0')
+    budget_remaining: Optional[Decimal] = None 

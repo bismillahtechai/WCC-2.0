@@ -50,12 +50,14 @@ class OrchestratorAgent:
         self.financial_agent = FinancialAgent()
         self.project_agent = ProjectAgent()
         self.document_agent = DocumentAgent()
-        self.client_agent = ClientAgent()
-        self.resource_agent = ResourceAgent()
-        self.compliance_agent = ComplianceAgent()
-        self.analytics_agent = AnalyticsAgent()
+
+        # These agents will be implemented later
+        self.client_agent = None  # Will be ClientAgent()
+        self.resource_agent = None  # Will be ResourceAgent()
+        self.compliance_agent = None  # Will be ComplianceAgent()
+        self.analytics_agent = None  # Will be AnalyticsAgent()
         
-        # Create tools from specialized agents
+        # Create tools for specialized agents
         self.tools = self._create_tools()
         
         # Initialize the LLM
@@ -83,45 +85,64 @@ class OrchestratorAgent:
         Returns:
             List[Tool]: List of tools for the orchestrator agent
         """
-        # Tools for specialized agents
-        agent_tools = [
+        # Create tools for specialized agents
+        specialized_tools = []
+
+        # Add financial tools
+        financial_tools = [
             Tool(
                 name="Financial Management",
-                func=self.financial_agent.run,
-                description="Handle financial tasks, invoicing, expense tracking, and budget management"
-            ),
+                func=self.delegate_to_financial_agent,
+                description="For financial tasks like budgets, expenses, invoices, and financial reporting"
+            )
+        ]
+        specialized_tools.extend(financial_tools)
+
+        # Add project management tools
+        project_tools = [
             Tool(
                 name="Project Management",
-                func=self.project_agent.run,
-                description="Manage construction projects, tasks, timelines, and resources"
-            ),
+                func=self.delegate_to_project_agent,
+                description="For project management tasks like creating projects, tasks, and timelines"
+            )
+        ]
+        specialized_tools.extend(project_tools)
+
+        # Add document processing tools
+        document_tools = [
             Tool(
                 name="Document Processing",
-                func=self.document_agent.run,
-                description="Analyze construction documents, plans, permits, and contracts"
-            ),
+                func=self.delegate_to_document_agent,
+                description="For document processing tasks like OCR, information extraction, and document search"
+            )
+        ]
+        specialized_tools.extend(document_tools)
+
+        # Add placeholders for future agent tools
+        placeholder_tools = [
             Tool(
                 name="Client Relations",
-                func=self.client_agent.run,
-                description="Handle client communications, proposals, and client tracking"
+                func=self.not_implemented,
+                description="For client relation tasks like contact management (not yet implemented)"
             ),
             Tool(
                 name="Resource Management",
-                func=self.resource_agent.run,
-                description="Manage materials, equipment, and labor scheduling"
+                func=self.not_implemented,
+                description="For resource management tasks like equipment tracking (not yet implemented)"
             ),
             Tool(
                 name="Compliance Management",
-                func=self.compliance_agent.run,
-                description="Monitor permits, codes, regulations, and safety compliance"
+                func=self.not_implemented,
+                description="For compliance tasks like regulation checking (not yet implemented)"
             ),
             Tool(
-                name="Analytics and Insights",
-                func=self.analytics_agent.run,
-                description="Provide performance insights, forecasting, and financial analysis"
-            ),
+                name="Analytics",
+                func=self.not_implemented,
+                description="For analytics tasks like performance metrics (not yet implemented)"
+            )
         ]
-        
+        specialized_tools.extend(placeholder_tools)
+
         # Tools for memory search
         memory_tools = [
             Tool(
@@ -136,7 +157,7 @@ class OrchestratorAgent:
             )
         ]
         
-        return agent_tools + memory_tools
+        return specialized_tools + memory_tools
     
     def search_memory(self, query: str) -> str:
         """
@@ -236,4 +257,112 @@ class OrchestratorAgent:
             return response
         except Exception as e:
             logger.error(f"Error in orchestrator: {str(e)}")
-            return f"I encountered an error processing your request: {str(e)}" 
+            return f"I encountered an error processing your request: {str(e)}"
+    
+    def delegate_to_financial_agent(self, query: str) -> str:
+        """
+        Delegate a task to the Financial Management Agent.
+        
+        Args:
+            query: The user's query or task
+            
+        Returns:
+            Response from the financial agent
+        """
+        if self.financial_agent is None:
+            return "Financial Management Agent is not yet implemented."
+        
+        logger.info(f"Delegating to Financial Management Agent: {query}")
+        
+        # Store the delegation in memory
+        self.mem0.add_memory(
+            text=f"Delegated task to Financial Agent: {query}",
+            category="delegations"
+        )
+        
+        # Run the financial agent
+        response = self.financial_agent.run(query)
+        
+        # Store the response in memory
+        self.mem0.add_memory(
+            text=f"Financial Agent response: {response}",
+            category="agent_responses"
+        )
+        
+        return response
+    
+    def delegate_to_project_agent(self, query: str) -> str:
+        """
+        Delegate a task to the Project Management Agent.
+        
+        Args:
+            query: The user's query or task
+            
+        Returns:
+            Response from the project agent
+        """
+        if self.project_agent is None:
+            return "Project Management Agent is not yet implemented."
+        
+        logger.info(f"Delegating to Project Management Agent: {query}")
+        
+        # Store the delegation in memory
+        self.mem0.add_memory(
+            text=f"Delegated task to Project Agent: {query}",
+            category="delegations"
+        )
+        
+        # Run the project agent
+        response = self.project_agent.run(query)
+        
+        # Store the response in memory
+        self.mem0.add_memory(
+            text=f"Project Agent response: {response}",
+            category="agent_responses"
+        )
+        
+        return response
+    
+    def delegate_to_document_agent(self, query: str) -> str:
+        """
+        Delegate a task to the Document Processing Agent.
+        
+        Args:
+            query: The user's query or task
+            
+        Returns:
+            Response from the document agent
+        """
+        if self.document_agent is None:
+            return "Document Processing Agent is not yet implemented."
+        
+        logger.info(f"Delegating to Document Processing Agent: {query}")
+        
+        # Store the delegation in memory
+        self.mem0.add_memory(
+            text=f"Delegated task to Document Agent: {query}",
+            category="delegations"
+        )
+        
+        # Run the document agent
+        response = self.document_agent.run(query)
+        
+        # Store the response in memory
+        self.mem0.add_memory(
+            text=f"Document Agent response: {response}",
+            category="agent_responses"
+        )
+        
+        return response
+    
+    def not_implemented(self, query: str) -> str:
+        """
+        Handle requests for agents that are not yet implemented.
+        
+        Args:
+            query: The user's query or task
+            
+        Returns:
+            Message that the feature is not yet implemented
+        """
+        return "This specialized agent is not yet implemented. The system is being developed incrementally, and this capability will be added in a future update." 
